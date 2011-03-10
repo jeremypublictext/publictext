@@ -9,7 +9,7 @@ var rooms = { };
 var getCommands = { };
 var postCommands = { };
 
-getCommands["/messages.jsonp"] = function(params, request, response, callback) {
+getCommands["/v1/messages.jsonp"] = function(params, request, response, callback) {
 	if( !params.hasOwnProperty("callback") ) { 
 		callback("expected param callback.");
 	}
@@ -43,8 +43,36 @@ getCommands["/robots.txt"] = function(params, request, response, callback) {
 	callback(undefined);
 };
 
-postCommands["/message.jsonp"] = function(params, request, response, callback) {
-	callback("unsupported");
+postCommands["/v1/message.jsonp"] = function(params, request, response, callback) {
+	var payload = "";
+	request.addListener("data", function(chunk) {
+		payload = payload + chunk;
+	});
+	request.addListener("end", function() {
+		var question;
+		try {
+			question = JSON.parse(payload);
+		} catch(error) {
+			callback("invalid json.");
+			return;
+		}
+		if( !question.hasOwnProperty("room") ) {
+			callback("expected JSON property room.");
+		}
+                if( !question.hasOwnProperty("body") ) {
+                        callback("expected JSON property body.");
+                }
+		var messages;
+		if( rooms.hasOwnProperty(question.room) ) {
+			messages = rooms[question.room];
+		} else {
+			messages = rooms[question.room] = [ ];
+		}
+		messages.push({ timestamp: (new Date()).getTime(), username: question.username, body: question.body });
+		response.writeHead(200);
+		response.end();
+		callback(undefined);
+	});
 };
 
 var httpServer = http.createServer(function(request, response) {
@@ -61,8 +89,8 @@ var httpServer = http.createServer(function(request, response) {
 		if( getCommands.hasOwnProperty(endpoint) ) {
 			getCommands[endpoint](parsedUrl.query, request, response, function(error) {
 				if( error ) {
-					response.writeHead(500);
-					response.end(error);
+					response.writeHead(500, {"Content-Type" : "application/javascript"});
+					response.end(JSON.stringify({ error: error}));
 				}
 			});
 		} else {
@@ -73,8 +101,8 @@ var httpServer = http.createServer(function(request, response) {
                 if( postCommands.hasOwnProperty(endpoint) ) {
                         postCommands[endpoint](parsedUrl.query, request, response, function(error) {
                                 if( error ) {
-                                        response.writeHead(500);
-                                        response.end(error);
+                                        response.writeHead(500, {"Content-Type" : "application/javascript"});
+					response.end(JSON.stringify({error: error}));
                                 }
                         });
                 } else {
