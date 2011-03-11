@@ -10,6 +10,23 @@ var rooms = { };
 var getCommands = { };
 var postCommands = { };
 
+function ago(time) {
+	var now = new Date();
+	var then = new Date(Number(time));
+	var dt = now.getTime() - then.getTime();
+	var word = dt > 0 ? "ago" : "from now";
+	dt = Math.abs(dt);
+	if( dt < 1000 * 60 ) {
+		return String((dt / 1000).toFixed(0)) + " seconds " + word;
+	} else if( dt < 1000 * 60 * 60 ) {
+		return String((dt / (60 * 1000)).toFixed(0)) + " minutes " + word;
+	} else if( dt < 1000 * 60 * 60 * 24 ) {
+		return String((dt / (60 * 60 * 1000)).toFixed(0)) + " hours " + word;
+	}
+	return String((dt / (24 * 60 * 60 * 1000)).toFixed(0)) + " days " + word;
+};
+
+
 getCommands["/v1/messages.json"] = getCommands["/v1/messages.jsonp"] = function(url, request, response, callback) {
 	if( url.pathname.indexOf("jsonp") !== -1 && !url.query.hasOwnProperty("callback") ) { 
 		callback("expected param callback.");
@@ -26,10 +43,12 @@ getCommands["/v1/messages.json"] = getCommands["/v1/messages.jsonp"] = function(
 		} else {
 			since = (new Date()).getTime() - 24 * 60 * 60 * 2;
 		}
+		var now = (new Date()).getTime();
 		var messages = rooms[url.query.room];
 		for( var i = 0; i < messages.length; i++ ) { 
 			var message = messages[i];
 		//	if( message.timestamp > since ) {
+				message.ago = ago(message.timestamp);
 				answer.messages.push(message);
 		//	}	
 		}
