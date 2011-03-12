@@ -67,6 +67,32 @@ getCommands["/robots.txt"] = function(url, request, response, callback) {
 	callback(undefined);
 };
 
+function addMessage(room, username, body) {
+	var messages;
+	if( rooms.hasOwnProperty(room) ) {
+		messages = rooms[room];
+	} else {
+		messages = rooms[room] = [ ];
+	}
+	messages.push({ timestamp: (new Date()).getTime(), username: username, body: body });
+}
+
+getCommands["/v1/add_message.jsonp"] = function(url, request, response, callback) {
+	if( !url.query.hasOwnProperty("room") ) {
+		callback("expected arg room.");
+	}
+	if( !url.query.hasOwnProperty("body") ) {
+		callback("expected arg body.");
+	}
+	if( !url.query.hasOwnProperty("username") ) {
+		callback("expected arg username.");
+	}
+	addMessage(url.query.room, url.query.username, url.query.body);
+	response.writeHead(200);
+	response.end();
+	callback(undefined);
+};
+
 postCommands["/v1/messages.json"] = function(url, request, response, callback) {
 	var payload = "";
 	request.addListener("data", function(chunk) {
@@ -86,13 +112,11 @@ postCommands["/v1/messages.json"] = function(url, request, response, callback) {
                 if( !question.hasOwnProperty("body") ) {
                         callback("expected JSON property body.");
                 }
-		var messages;
-		if( rooms.hasOwnProperty(question.room) ) {
-			messages = rooms[question.room];
-		} else {
-			messages = rooms[question.room] = [ ];
+		if( !question.hasOwnProperty("username") ) {
+			callback("expected JSON property username.");
 		}
-		messages.push({ timestamp: (new Date()).getTime(), username: question.username, body: question.body });
+
+		addMessage(question.room, question.username, question.body);
 		response.writeHead(200);
 		response.end();
 		callback(undefined);
